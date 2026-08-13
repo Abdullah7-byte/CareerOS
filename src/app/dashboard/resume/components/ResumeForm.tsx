@@ -1,10 +1,18 @@
 "use client";
+
 import { saveResume } from "@/app/action/resume";
 import { useState } from "react";
 
-export default function ResumeForm() {
-    const [title, setTitle] = useState("");
-    const [summary, setSummary] = useState("");
+type ResumeFormProps = {
+    resume: {
+        title: string;
+        summary: string | null;
+    } | null;
+};
+
+export default function ResumeForm({ resume }: ResumeFormProps) {
+    const [title, setTitle] = useState(resume?.title ?? "");
+    const [summary, setSummary] = useState(resume?.summary ?? "");
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();

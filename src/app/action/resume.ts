@@ -43,19 +43,44 @@ export async function saveResume(
 
     const resumeData = result.data;
 
-    const { error } = await supabase
+    const { data: existingResume } = await supabase
         .from("resumes")
-        .insert({
-            profile_id: user.id,
-            title: resumeData.title,
-            summary: resumeData.summary ?? null,
-        });
+        .select("id")
+        .eq("profile_id", user.id)
+        .eq("is_default", true)
+        .maybeSingle();
 
-    if (error) {
-        return {
-            success: false,
-            error: error.message,
-        };
+    if (existingResume) {
+        const { error } = await supabase
+            .from("resumes")
+            .update({
+                title: resumeData.title,
+                summary: resumeData.summary ?? null,
+            })
+            .eq("id", existingResume.id);
+
+        if (error) {
+            return {
+                success: false,
+                error: error.message,
+            };
+        }
+    } else {
+        const { error } = await supabase
+            .from("resumes")
+            .insert({
+                profile_id: user.id,
+                title: resumeData.title,
+                summary: resumeData.summary ?? null,
+                is_default: true,
+            });
+
+        if (error) {
+            return {
+                success: false,
+                error: error.message,
+            };
+        }
     }
 
     return {
