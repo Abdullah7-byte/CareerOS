@@ -10,7 +10,7 @@ export default async function ResumePage() {
 
     const { data: resume } = await supabase
         .from("resumes")
-        .select("*")
+        .select("*, resume_experiences(*), resume_education(*), resume_skills(*), resume_projects(*)")
         .eq("profile_id", user!.id)
         .eq("is_default", true)
         .maybeSingle();
