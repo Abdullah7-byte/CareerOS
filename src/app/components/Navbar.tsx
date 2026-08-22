@@ -1,22 +1,20 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import Logo from "./Logo";
+
 export default function Navbar() {
   return (
-    <nav>
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-        <div className="text-2xl font-bold tracking-tight">CareerOS</div>
+    <nav className="px-5 pt-5 sm:px-8 sm:pt-8 lg:px-10">
+      <div className="flex items-center justify-between">
+        <Logo />
 
-        {/* Navigation */}
-        <div className="flex gap-8 text-slate-300">
-          <span className="cursor-pointer transition hover:text-white">Features</span>
-          <span className="cursor-pointer transition hover:text-white">Pricing</span>
-          <span className="cursor-pointer transition hover:text-white">About</span>
-          <span className="cursor-pointer transition hover:text-white">Contact</span>
-        </div>
-
-        {/* Action */}
-        <div>
-          <button className="rounded-xl bg-cyan-500 px-5 py-2 text-white transition hover:bg-cyan-600">
-            Get Started
-          </button>
+        <div className="flex items-center gap-3 sm:gap-5">
+          <Link href="/login" className="text-xs font-medium text-text-secondary transition-colors hover:text-foreground">
+            Sign In
+          </Link>
+          <Link href="/register">
+            <Button size="sm" className="h-8 rounded-full px-3.5 text-xs sm:px-4">Get started</Button>
+          </Link>
         </div>
       </div>
     </nav>

@@ -45,7 +45,9 @@ export type Database = {
           created_at: string
           id: string
           job_id: string
+          match_score: number | null
           profile_id: string
+          resume_id: string | null
           status: string
           updated_at: string
         }
@@ -54,7 +56,9 @@ export type Database = {
           created_at?: string
           id?: string
           job_id: string
+          match_score?: number | null
           profile_id: string
+          resume_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -63,7 +67,9 @@ export type Database = {
           created_at?: string
           id?: string
           job_id?: string
+          match_score?: number | null
           profile_id?: string
+          resume_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -80,6 +86,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
             referencedColumns: ["id"]
           },
         ]
@@ -137,6 +150,11 @@ export type Database = {
           id: string
           location: string | null
           phone: string | null
+            organization_name: string | null
+            organization_website: string | null
+            recruiter_name: string | null
+            recruiter_title: string | null
+          role: string
           updated_at: string
         }
         Insert: {
@@ -147,6 +165,11 @@ export type Database = {
           id: string
           location?: string | null
           phone?: string | null
+          organization_name?: string | null
+          organization_website?: string | null
+          recruiter_name?: string | null
+          recruiter_title?: string | null
+          role?: string
           updated_at?: string
         }
         Update: {
@@ -157,6 +180,11 @@ export type Database = {
           id?: string
           location?: string | null
           phone?: string | null
+          organization_name?: string | null
+          organization_website?: string | null
+          recruiter_name?: string | null
+          recruiter_title?: string | null
+          role?: string
           updated_at?: string
         }
         Relationships: []
@@ -374,7 +402,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_candidate_resume: {
+        Args: {
+          p_resume_id: string
+          p_resume: Json
+        }
+        Returns: undefined
+      }
+      set_candidate_default_resume: {
+        Args: {
+          p_resume_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

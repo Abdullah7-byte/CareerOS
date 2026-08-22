@@ -40,4 +40,36 @@ export const resumeContentSchema = z.object({
   projects: z.array(projectSchema),
 });
 
+export const summaryEnhancementSchema = z.object({
+  summary: z.string().trim().min(1).max(2000),
+});
+
+export const summaryEnhancementInputSchema = z.object({
+  summary: z.string().trim().min(15).max(2000),
+});
+
+
 export type ResumeContent = z.infer<typeof resumeContentSchema>;
+
+export const jobRelevanceEvaluationSchema = z.object({
+  requiredSkills: z.object({
+    identified: z.array(z.string()),
+    matched: z.array(z.string()),
+  }),
+  preferredSkills: z.object({
+    identified: z.array(z.string()),
+    matched: z.array(z.string()),
+  }),
+  responsibilities: z.object({
+    score: z.number().int().min(0).max(5),
+    details: z.string(),
+  }),
+  qualifications: z.object({
+    identified: z.array(z.string()),
+    matched: z.array(z.string()),
+  }),
+  overallRelevance: z.object({
+    score: z.number().int().min(0).max(5),
+    details: z.string(),
+  }),
+});

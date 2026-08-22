@@ -1,83 +1,30 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowUpRight } from "lucide-react";
+import { MatchAnalysisPreview } from "@/components/dashboard/candidate/match-analysis";
+
 export default function Hero() {
   return (
-    <section className="flex min-h-[80vh] flex-col items-center justify-center px-6">
-      {/* Main Container */}
-      <div className="mx-auto flex max-w-7xl flex-col items-center gap-16 lg:flex-row">
-
-        {/* Left Side */}
-        <div className="flex-1 text-left">
-          <div className="mb-4 inline-flex gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2">
-            <span>AI Powered</span>
-            <span>Resume Builder</span>
-          </div>
-
-          <h1 className="mb-6 max-w-4xl text-6xl font-bold tracking-tight">
-            Your AI Career
-            <span className="block text-cyan-400">
-              Operating System
-            </span>
-          </h1>
-
-          <p className="max-w-2xl text-lg text-slate-400">
-            Build ATS-optimized resumes, discover better job opportunities,
-            track every application, and accelerate your career with AI.
-          </p>
-
-          <div className="mt-10 flex justify-start gap-4">
-            <button className="rounded-xl bg-cyan-500 px-6 py-3 text-white hover:bg-cyan-600">
-              Get Started
-            </button>
-
-            <button className="rounded-xl border border-slate-600 px-6 py-3 text-white hover:bg-slate-800">
-              Live Demo
-            </button>
-          </div>
-        </div>
-
-        {/* Right Side */}
-        <div className="flex-1">
-          <div className="max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-            <h2 className="text-xl font-semibold">Abdullah Aftab</h2>
-
-            <p className="mt-1 text-slate-400">
-              Full Stack Developer
+    <section className="px-3 pb-3 pt-5 sm:px-5 sm:pb-5 sm:pt-8 lg:px-7">
+      <div className="relative overflow-hidden rounded-[25px] border border-white bg-[#e9e8e4] px-6 py-12 sm:rounded-[34px] sm:px-10 sm:py-16 lg:min-h-[570px] lg:px-16 lg:py-20">
+        <div className="relative grid items-center gap-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
+          <div className="max-w-xl">
+            <h1 className="mt-7 text-[2.7rem] font-bold leading-[0.98] tracking-[-0.065em] text-foreground sm:text-6xl lg:text-[4.35rem]">
+              Your career,<br />in one workspace.
+            </h1>
+            <p className="mt-6 max-w-md text-base leading-7 text-text-secondary sm:text-lg">
+              Build your resume. Discover relevant jobs. Apply with the right resume. Track it.
             </p>
-
-            <div className="mt-6 space-y-4">
-              <div className="h-3 rounded bg-slate-700"></div>
-              <div className="h-3 w-3/4 rounded bg-slate-700"></div>
-
-              <div className="pt-2">
-                <div className="mb-2 h-2 w-24 rounded bg-cyan-500"></div>
-                <div className="h-3 rounded bg-slate-700"></div>
-              </div>
-
-              <div className="pt-2">
-                <div className="mb-2 h-2 w-20 rounded bg-cyan-500"></div>
-                <div className="h-3 rounded bg-slate-700"></div>
-                <div className="mt-2 h-3 w-4/5 rounded bg-slate-700"></div>
-              </div>
-
-              <div className="pt-2">
-                <div className="mb-2 h-2 w-28 rounded bg-cyan-500"></div>
-                <div className="flex gap-2">
-                  <div className="rounded-full bg-cyan-500 px-3 py-1 text-xs text-white">
-                    React
-                  </div>
-
-                  <div className="rounded-full bg-cyan-500 px-3 py-1 text-xs text-white">
-                    Next.js
-                  </div>
-
-                  <div className="rounded-full bg-cyan-500 px-3 py-1 text-xs text-white">
-                    TypeScript
-                  </div>
-                </div>
-              </div>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <Link href="/register"><Button size="lg" className="rounded-full px-6 text-sm">Get started <ArrowUpRight className="ml-1 h-4 w-4" /></Button></Link>
+              <span className="text-xs text-text-muted">For candidates and employers</span>
             </div>
           </div>
-        </div>
 
+          <div className="mx-auto w-full max-w-[390px] lg:rotate-[2deg]">
+            <MatchAnalysisPreview />
+          </div>
+        </div>
       </div>
     </section>
   );

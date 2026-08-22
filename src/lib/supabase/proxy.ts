@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getPortalPath } from "@/lib/auth/portal-route";
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -32,11 +33,45 @@ export async function updateSession(request: NextRequest) {
         }
     );
 
-    const { data } = await supabase.auth.getClaims();
+    const pathname = request.nextUrl.pathname;
+    const isDashboardRoute = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+    const isAuthRoute = pathname === "/login" || pathname === "/register";
+    const { data: { user } } = await supabase.auth.getUser();
 
+    if (!user) {
+        if (!isDashboardRoute) return supabaseResponse;
 
-    if (!data?.claims) {
-        return NextResponse.redirect(new URL("/login", request.url));
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+        return NextResponse.redirect(loginUrl);
+    }
+
+    const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+    const role = profile?.role;
+    if (role !== "candidate" && role !== "employer") {
+        if (isAuthRoute) return supabaseResponse;
+        const fallbackUrl = new URL("/login", request.url);
+        fallbackUrl.searchParams.set("error", "invalid_role");
+        return NextResponse.redirect(fallbackUrl);
+    }
+
+    const portalPath = getPortalPath(role);
+
+    if (isAuthRoute || pathname === "/dashboard") {
+        return NextResponse.redirect(new URL(portalPath, request.url));
+    }
+
+    if (role === "candidate" && pathname.startsWith("/dashboard/employer")) {
+        return NextResponse.redirect(new URL(portalPath, request.url));
+    }
+
+    if (role === "employer" && pathname.startsWith("/dashboard/candidate")) {
+        return NextResponse.redirect(new URL(portalPath, request.url));
     }
 
     return supabaseResponse;

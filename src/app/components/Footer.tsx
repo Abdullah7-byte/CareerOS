@@ -1,19 +1,12 @@
+import Logo from "./Logo";
+
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-800 py-12">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="flex items-center justify-between">
-          <div className="text-xl font-bold">CareerOS</div>
-
-          <div className="flex gap-6 text-slate-400">
-            <span className="cursor-pointer transition hover:text-white">About</span>
-            <span className="cursor-pointer transition hover:text-white">Features</span>
-            <span className="cursor-pointer transition hover:text-white">Contact</span>
-          </div>
-        </div>
-
-        <div className="mt-8 text-sm text-slate-500">
-          © 2026 CareerOS
+    <footer className="px-6 py-7 sm:px-10">
+      <div className="flex items-center justify-between border-t border-black/[0.07] pt-6">
+        <Logo />
+        <div className="text-[11px] text-text-muted">
+          © {new Date().getFullYear()} CareerOS
         </div>
       </div>
     </footer>
