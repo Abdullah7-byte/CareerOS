@@ -67,8 +67,8 @@ export function JobForm({ mode, initialValues }: JobFormProps) {
         return;
       }
 
+      setIsSubmitting(false);
       router.push("/dashboard/employer/jobs");
-      router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "We couldn't save this job.");
       setIsSubmitting(false);

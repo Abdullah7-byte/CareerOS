@@ -28,41 +28,42 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
-function DeleteJobButton({ jobId }: { jobId: string }) {
+export function EmployerJobsBoard({ jobs }: { jobs: EmployerJobListItem[] }) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [visibleJobs, setVisibleJobs] = useState(jobs);
+  const [jobToDelete, setJobToDelete] = useState<EmployerJobListItem | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
 
-  async function handleDelete() {
-    const confirmed = window.confirm("Delete this job? This action cannot be undone.");
-    if (!confirmed) return;
+  function openDeleteConfirmation(job: EmployerJobListItem) {
+    setOpenMenuId(null);
+    setDeleteError(null);
+    setJobToDelete(job);
+  }
 
-    startTransition(async () => {
-      const result = await deleteJob(jobId);
-      if (result.success) {
-        router.refresh();
+  function closeDeleteConfirmation() {
+    if (isDeleting) return;
+    setDeleteError(null);
+    setJobToDelete(null);
+  }
+
+  function confirmDelete() {
+    if (!jobToDelete || isDeleting) return;
+
+    startDeleteTransition(async () => {
+      const result = await deleteJob(jobToDelete.id);
+      if (!result.success) {
+        setDeleteError(result.error || "We couldn't delete this job.");
         return;
       }
-      window.alert(result.error || "We couldn't delete this job.");
+
+      setVisibleJobs((current) => current.filter((job) => job.id !== jobToDelete.id));
+      setJobToDelete(null);
+      router.refresh();
     });
   }
 
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={handleDelete}
-      disabled={isPending}
-      className="flex w-full items-center justify-start gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-error hover:bg-error/10"
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-      {isPending ? "Deleting..." : "Delete job"}
-    </Button>
-  );
-}
-
-export function EmployerJobsBoard({ jobs }: { jobs: EmployerJobListItem[] }) {
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   return (
     <div className="mx-auto max-w-7xl space-y-5 pb-12">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -84,7 +85,7 @@ export function EmployerJobsBoard({ jobs }: { jobs: EmployerJobListItem[] }) {
       </header>
 
       <section className="space-y-3">
-        {jobs.length === 0 ? (
+        {visibleJobs.length === 0 ? (
           <Card className="p-6">
             <div className="flex flex-col gap-4 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border bg-accent-soft text-foreground">
@@ -105,7 +106,7 @@ export function EmployerJobsBoard({ jobs }: { jobs: EmployerJobListItem[] }) {
             </div>
           </Card>
         ) : (
-          jobs.map((job) => (
+          visibleJobs.map((job) => (
             <Card key={job.id} className="p-4 sm:p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div className="min-w-0 flex-1">
@@ -163,7 +164,16 @@ export function EmployerJobsBoard({ jobs }: { jobs: EmployerJobListItem[] }) {
                               Edit job
                             </Button>
                           </Link>
-                          <DeleteJobButton jobId={job.id} />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteConfirmation(job)}
+                            className="flex w-full items-center justify-start gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-error hover:bg-error/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete job
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -174,6 +184,23 @@ export function EmployerJobsBoard({ jobs }: { jobs: EmployerJobListItem[] }) {
           ))
         )}
       </section>
+
+      {jobToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="presentation">
+          <button type="button" tabIndex={-1} aria-label="Close delete confirmation" onClick={closeDeleteConfirmation} disabled={isDeleting} className="fixed inset-0 bg-foreground/25" />
+          <section role="dialog" aria-modal="true" aria-labelledby="delete-job-title" aria-describedby="delete-job-description" className="motion-menu relative w-full max-w-sm rounded-xl border border-border bg-surface p-5 shadow-lg">
+            <h2 id="delete-job-title" className="text-base font-bold tracking-tight text-foreground">Delete this job?</h2>
+            <p id="delete-job-description" className="mt-1.5 text-sm leading-5 text-text-secondary">This action cannot be undone.</p>
+            {deleteError && <p role="alert" className="mt-3 text-xs font-medium text-error">{deleteError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={closeDeleteConfirmation} disabled={isDeleting}>Cancel</Button>
+              <Button variant="default" size="sm" onClick={confirmDelete} disabled={isDeleting} className="bg-error text-white hover:bg-error/90">
+                {isDeleting ? "Deleting..." : "Delete job"}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

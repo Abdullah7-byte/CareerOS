@@ -42,8 +42,8 @@ begin
         item.company,
         item.position,
         nullif(item.location, ''),
-        nullif(item.start_date, '')::date,
-        nullif(item.end_date, '')::date,
+        nullif(item.start_date, ''),
+        nullif(item.end_date, ''),
         item.is_current = 'true',
         nullif(item.description, '')
     from jsonb_to_recordset(coalesce(p_resume->'experience', '[]'::jsonb)) as item(
@@ -59,8 +59,8 @@ begin
         item.institution,
         item.degree,
         nullif(item.field_of_study, ''),
-        nullif(item.start_date, '')::date,
-        nullif(item.end_date, '')::date,
+        nullif(item.start_date, ''),
+        nullif(item.end_date, ''),
         nullif(item.grade, '')
     from jsonb_to_recordset(coalesce(p_resume->'education', '[]'::jsonb)) as item(
         institution text, degree text, field_of_study text, start_date text,
