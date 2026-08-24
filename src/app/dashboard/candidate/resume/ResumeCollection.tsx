@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createResume, renameResume, setResumeAsDefault } from "@/app/action/resume";
+import { createResume, deleteResume, renameResume, setResumeAsDefault } from "@/app/action/resume";
 import { Check, ChevronDown, MoreHorizontal } from "lucide-react";
 
 export function ResumeCollectionActions({
@@ -23,12 +23,15 @@ export function ResumeCollectionActions({
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameResumeId, setRenameResumeId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [makeDefaultChecked, setMakeDefaultChecked] = useState(false);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const selectedResume = resumes.find((resume) => resume.id === selectedResumeId) ?? resumes[0] ?? null;
   const renameTarget = resumes.find((resume) => resume.id === renameResumeId) ?? null;
+  const deleteTarget = resumes.find((resume) => resume.id === deleteResumeId) ?? null;
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -97,6 +100,38 @@ export function ResumeCollectionActions({
     });
   }
 
+  function openDeleteConfirmation(resumeId: string) {
+    setActionMenuId(null);
+    setDeleteError(null);
+    setDeleteResumeId(resumeId);
+  }
+
+  function closeDeleteConfirmation() {
+    if (isPending) return;
+    setDeleteError(null);
+    setDeleteResumeId(null);
+  }
+
+  function handleDeleteResume() {
+    if (!deleteTarget || isPending) return;
+
+    startTransition(async () => {
+      const result = await deleteResume(deleteTarget.id);
+      if (!result.success) {
+        setDeleteError(result.error);
+        return;
+      }
+
+      setDeleteResumeId(null);
+      const nextResume = resumes.find((resume) => resume.id !== deleteTarget.id) ?? null;
+      if (deleteTarget.id === selectedResume?.id) {
+        router.replace(nextResume ? `/dashboard/candidate/resume?resume=${nextResume.id}` : "/dashboard/candidate/resume");
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <>
       <div className="rounded-2xl border border-border bg-surface p-4 shadow-[0_1px_0_rgba(17,18,17,0.02)]">
@@ -130,7 +165,7 @@ export function ResumeCollectionActions({
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 z-20 mt-2 w-[20rem] rounded-xl border border-border bg-surface p-2 shadow-[0_8px_30px_rgba(17,17,17,0.08)]">
+                  <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-border bg-surface p-2 shadow-[0_8px_30px_rgba(17,17,17,0.08)]">
                     <div className="border-b border-border px-2.5 pb-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">Your resumes</p>
                       <p className="mt-1 text-xs text-text-secondary">Select a resume to edit.</p>
@@ -197,6 +232,13 @@ export function ResumeCollectionActions({
                                   className="flex w-full rounded-md px-2.5 py-2 text-left text-xs font-medium text-text-secondary hover:bg-background hover:text-foreground"
                                 >
                                   Rename
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openDeleteConfirmation(resume.id)}
+                                  className="flex w-full rounded-md px-2.5 py-2 text-left text-xs font-medium text-error hover:bg-error/10"
+                                >
+                                  Delete
                                 </button>
                               </div>
                             )}
@@ -296,6 +338,25 @@ export function ResumeCollectionActions({
               </Button>
             </div>
           </div>
+        </div>,
+        document.body
+      )}
+
+      {deleteTarget && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(17,17,17,0.06)] p-4" role="presentation">
+          <button type="button" tabIndex={-1} aria-label="Close delete resume confirmation" onClick={closeDeleteConfirmation} disabled={isPending} className="fixed inset-0" />
+          <section role="dialog" aria-modal="true" aria-labelledby="delete-resume-title" aria-describedby="delete-resume-description" className="motion-menu relative w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-[0_12px_36px_rgba(17,17,17,0.08)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">Resume</p>
+            <h3 id="delete-resume-title" className="mt-2 text-lg font-bold text-foreground">Delete this resume?</h3>
+            <p id="delete-resume-description" className="mt-2 text-sm leading-5 text-text-secondary">This action cannot be undone.</p>
+            {deleteError && <p role="alert" className="mt-3 text-xs font-medium text-error">{deleteError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={closeDeleteConfirmation} disabled={isPending}>Cancel</Button>
+              <Button type="button" variant="default" size="sm" onClick={handleDeleteResume} disabled={isPending} className="bg-error text-white hover:bg-error/90">
+                {isPending ? "Deleting..." : "Delete resume"}
+              </Button>
+            </div>
+          </section>
         </div>,
         document.body
       )}

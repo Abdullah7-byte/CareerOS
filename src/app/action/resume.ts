@@ -227,6 +227,33 @@ export async function renameResume(resumeId: string, title: string) {
     return { success: true, data: { id: data.id, title: data.title } } as const;
 }
 
+export async function deleteResume(resumeId: string) {
+    const supabase = await createClient();
+
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        return { success: false, error: "Not authenticated" } as const;
+    }
+
+    const { data, error } = await supabase
+        .from("resumes")
+        .delete()
+        .eq("id", resumeId)
+        .eq("profile_id", user.id)
+        .select("id")
+        .single();
+
+    if (error || !data) {
+        console.error("deleteResume: delete failed", { userId: user.id, resumeId, code: error?.code, message: error?.message });
+        return { success: false, error: "Unable to delete this resume. Please try again." } as const;
+    }
+
+    return { success: true, data: { id: data.id } } as const;
+}
+
 export async function getResumeById(resumeId: string): Promise<ResumeRow | null> {
     const supabase = await createClient();
 

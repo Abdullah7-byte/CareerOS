@@ -150,7 +150,7 @@ export function SettingsForm({ email, profile }: SettingsFormProps) {
       let result: { success: boolean; error?: string };
 
       try {
-        const response = await fetch("/api/candidate/password", {
+        const response = await fetch("/api/account/password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),

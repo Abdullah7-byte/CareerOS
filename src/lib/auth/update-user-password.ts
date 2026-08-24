@@ -3,7 +3,7 @@ import { passwordChangeSchema } from "@/lib/validations/profile";
 
 export type PasswordUpdateResult = { success: true } | { success: false; error: string };
 
-export async function updateCandidatePassword(input: unknown): Promise<PasswordUpdateResult> {
+export async function updateUserPassword(input: unknown): Promise<PasswordUpdateResult> {
   const validation = passwordChangeSchema.safeParse(input);
 
   if (!validation.success) {
@@ -17,16 +17,6 @@ export async function updateCandidatePassword(input: unknown): Promise<PasswordU
 
   if (!user?.email) {
     return { success: false, error: "Your session has expired. Please sign in again." };
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || profile?.role !== "candidate") {
-    return { success: false, error: "Only candidate accounts can update their password here." };
   }
 
   const { error: verificationError } = await supabase.auth.signInWithPassword({
@@ -43,7 +33,7 @@ export async function updateCandidatePassword(input: unknown): Promise<PasswordU
   });
 
   if (updateError) {
-    console.error("Candidate password update failed", {
+    console.error("Password update failed", {
       userId: user.id,
       errorCode: updateError.code ?? "unknown",
       status: updateError.status ?? "unknown",

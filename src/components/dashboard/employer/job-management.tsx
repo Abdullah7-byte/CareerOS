@@ -187,7 +187,7 @@ export function EmployerJobsBoard({ jobs }: { jobs: EmployerJobListItem[] }) {
 
       {jobToDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="presentation">
-          <button type="button" tabIndex={-1} aria-label="Close delete confirmation" onClick={closeDeleteConfirmation} disabled={isDeleting} className="fixed inset-0 bg-foreground/25" />
+          <button type="button" tabIndex={-1} aria-label="Close delete confirmation" onClick={closeDeleteConfirmation} disabled={isDeleting} className="fixed inset-0 bg-[rgba(17,17,17,0.06)]" />
           <section role="dialog" aria-modal="true" aria-labelledby="delete-job-title" aria-describedby="delete-job-description" className="motion-menu relative w-full max-w-sm rounded-xl border border-border bg-surface p-5 shadow-lg">
             <h2 id="delete-job-title" className="text-base font-bold tracking-tight text-foreground">Delete this job?</h2>
             <p id="delete-job-description" className="mt-1.5 text-sm leading-5 text-text-secondary">This action cannot be undone.</p>

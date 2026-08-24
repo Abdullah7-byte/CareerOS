@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { updateCandidatePassword } from "@/lib/auth/update-candidate-password";
+import { updateUserPassword } from "@/lib/auth/update-user-password";
 
 export async function POST(request: Request) {
   let input: unknown;
@@ -10,6 +10,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Invalid password update request." }, { status: 400 });
   }
 
-  const result = await updateCandidatePassword(input);
+  const result = await updateUserPassword(input);
   return NextResponse.json(result, { status: result.success ? 200 : 400 });
 }
