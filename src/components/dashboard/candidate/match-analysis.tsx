@@ -156,13 +156,14 @@ export function MatchAnalysisPanel({ analysis, jobTitle, resumeTitle }: { analys
 }
 
 /** A static representation of the same resume-to-role analysis used during application submission. */
-export function MatchAnalysisPreview({ className = "" }: { className?: string }) {
+export function MatchAnalysisPreview({ className = "", showExampleLabel = false }: { className?: string; showExampleLabel?: boolean }) {
   return (
     <div className={`w-full rounded-md border border-border bg-[#fcfbf9] p-5 ${className}`} aria-label="CareerOS role match preview">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">Match</p>
       <div className="mt-4 flex items-start justify-between text-sm font-semibold text-foreground"><span>Resume</span><span>Job</span></div>
       <div className="mt-2 border-t border-border" />
-      <div className="mt-5 flex items-baseline gap-2"><span className="text-4xl font-bold tracking-[-0.065em] text-foreground">92%</span><span className="text-sm font-medium text-text-secondary">Match</span></div>
+      {showExampleLabel && <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.12em] text-text-muted">Example match score</p>}
+      <div className={`${showExampleLabel ? "mt-2" : "mt-5"} flex items-baseline gap-2`}><span className="text-4xl font-bold tracking-[-0.065em] text-foreground">92%</span><span className="text-sm font-medium text-text-secondary">Match</span></div>
       <div className="mt-5 grid grid-cols-2 gap-y-2.5 text-[11px] font-medium text-text-secondary">{SCAN_STEPS.map((item) => <span key={item} className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-foreground" />{item}</span>)}</div>
     </div>
   );
