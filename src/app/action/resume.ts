@@ -9,7 +9,7 @@ import {
 type ResumeActionResult =
     | {
         success: true;
-        data: { id: string; resume: ResumeContent };
+        data: { id: string; resume: ResumeContent; version: number };
     }
     | {
         success: false;
@@ -22,6 +22,7 @@ type ResumeRow = {
     summary: string | null;
     is_default: boolean;
     updated_at: string;
+    version: number;
     profile_id: string;
     resume_experiences?: Array<Record<string, unknown>>;
     resume_education?: Array<Record<string, unknown>>;
@@ -55,11 +56,12 @@ function getResumePayload(input: unknown) {
     return { resumeId, resumeData: parsed.success ? parsed.data : null, parseError: parsed.success ? null : parsed.error };
 }
 
-async function replaceResumeRelations(resumeId: string, resumeData: ResumeContent) {
+async function replaceResumeRelations(resumeId: string, resumeData: ResumeContent, expectedVersion?: number) {
     const supabase = await createClient();
 
     const { error } = await supabase.rpc("save_candidate_resume", {
         p_resume_id: resumeId,
+        p_expected_version: expectedVersion ?? null,
         p_resume: {
             title: resumeData.title,
             summary: resumeData.summary ?? "",
@@ -107,7 +109,7 @@ export async function listCandidateResumes(): Promise<ResumeRow[]> {
 
     const { data, error } = await supabase
         .from("resumes")
-        .select("id, title, summary, is_default, updated_at, profile_id, resume_experiences(*), resume_education(*), resume_skills(*), resume_projects(*)")
+        .select("id, title, summary, is_default, updated_at, version, profile_id, resume_experiences(*), resume_education(*), resume_skills(*), resume_projects(*)")
         .eq("profile_id", user.id)
         .order("updated_at", { ascending: false });
 
@@ -267,7 +269,7 @@ export async function getResumeById(resumeId: string): Promise<ResumeRow | null>
 
     const { data, error } = await supabase
         .from("resumes")
-        .select("id, title, summary, is_default, updated_at, profile_id, resume_experiences(*), resume_education(*), resume_skills(*), resume_projects(*)")
+        .select("id, title, summary, is_default, updated_at, version, profile_id, resume_experiences(*), resume_education(*), resume_skills(*), resume_projects(*)")
         .eq("id", resumeId)
         .eq("profile_id", user.id)
         .maybeSingle();
@@ -318,6 +320,9 @@ export async function saveResume(
 
     try {
         let resumeId = parsed.resumeId;
+        const rawInput = input as Record<string, unknown>;
+        const expectedVersion = typeof rawInput.version === "number" ? rawInput.version : undefined;
+        let version = 1;
 
         if (resumeId) {
             const { data: existingResume, error: existingResumeError } = await supabase
@@ -337,33 +342,31 @@ export async function saveResume(
                     error: "Resume not found.",
                 };
             }
-
+            await replaceResumeRelations(resumeId, resumeData, expectedVersion);
+            version = (expectedVersion ?? 0) + 1;
         } else {
-            const { data: insertedResume, error: insertedResumeError } = await supabase
-                .from("resumes")
-                .insert({
-                    profile_id: user.id,
-                    title: resumeData.title.trim() || "Untitled Resume",
-                    summary: resumeData.summary ?? null,
-                    is_default: false,
-                })
-                .select("id")
-                .single();
-
-            if (insertedResumeError || !insertedResume) {
-                throw new Error(insertedResumeError?.message ?? "Unable to create resume.");
-            }
-
-            resumeId = insertedResume.id;
+            const { data: created, error: createError } = await supabase.rpc("create_candidate_resume", {
+                p_resume: {
+                    title: resumeData.title,
+                    summary: resumeData.summary ?? "",
+                    experience: resumeData.experience.map((experience) => ({ company: experience.company, position: experience.position, location: experience.location ?? "", start_date: experience.startDate, end_date: experience.endDate ?? "", is_current: experience.isCurrent, description: experience.description ?? "" })),
+                    education: resumeData.education.map((education) => ({ institution: education.institution, degree: education.degree, field_of_study: education.fieldOfStudy ?? "", start_date: education.startDate ?? "", end_date: education.endDate ?? "", grade: education.grade ?? "" })),
+                    skills: resumeData.skills,
+                    projects: resumeData.projects.map((project) => ({ title: project.title, description: project.description ?? "", technologies: project.technologies ?? "", github_url: project.githubUrl ?? "", live_url: project.liveUrl ?? "" })),
+                },
+            });
+            const createdResume = created?.[0];
+            if (createError || !createdResume) throw new Error(createError?.message ?? "Unable to create resume.");
+            resumeId = createdResume.id;
+            version = createdResume.version;
         }
-
-        await replaceResumeRelations(resumeId, resumeData);
 
         return {
             success: true,
             data: {
                 id: resumeId,
                 resume: resumeData,
+                version,
             },
         };
     } catch (error) {
@@ -374,7 +377,9 @@ export async function saveResume(
         });
         return {
             success: false,
-            error: "We couldn't save your resume. Please try again.",
+            error: error instanceof Error && error.message.includes("version conflict")
+                ? "This resume changed elsewhere. Refresh before saving again."
+                : "We couldn't save your resume. Please try again.",
         };
     }
 }

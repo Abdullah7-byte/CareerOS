@@ -26,6 +26,7 @@ export interface CandidateApplication {
   jobId: string;
   status: string;
   matchScore: number | null;
+  scoreStatus?: string;
   appliedAt: string;
   createdAt: string;
   job: {
@@ -395,11 +396,14 @@ function ApplicationCard({ application, isFocused, onWithdrawn }: { application:
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 self-center sm:self-start">
-          {application.matchScore !== null && (
+          {application.matchScore !== null && application.scoreStatus !== "legacy" && (
             <div className="flex min-h-[60px] min-w-[80px] flex-col items-center justify-center rounded-lg border border-border bg-[#f6f4f1] px-2 py-1.5 text-center leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
               <p className="text-[8px] font-medium uppercase tracking-[0.16em] text-text-muted">Match</p>
               <p className="mt-1 text-[15px] font-semibold tabular-nums leading-none text-foreground">{formatMatchScore(application.matchScore)}</p>
             </div>
+          )}
+          {(application.matchScore === null || application.scoreStatus === "legacy") && application.scoreStatus && application.scoreStatus !== "legacy" && (
+            <p className="max-w-[90px] text-center text-[10px] text-text-secondary">{application.scoreStatus === "insufficient" ? "Insufficient job detail" : application.scoreStatus === "failed" ? "Score retry pending" : "Scoring pending"}</p>
           )}
           {canWithdraw && (
             <div className="flex h-[78px] items-center justify-center">

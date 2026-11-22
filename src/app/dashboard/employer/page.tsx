@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EmployerDashboardOverview } from "@/components/dashboard/employer/dashboard-overview";
-import { getApplicationsForJob } from "@/app/action/applications";
+import { getApplicationsForEmployer } from "@/app/action/applications";
 
 export const dynamic = "force-dynamic";
 
@@ -33,19 +33,9 @@ export default async function EmployerDashboardPage() {
     throw new Error("We couldn't load your hiring overview. Please try again.");
   }
 
-  const ownedJobIds = (jobs ?? []).map((job) => job.id);
-  const applicationsByJob = await Promise.all(
-    ownedJobIds.map(async (jobId) => {
-      const result = await getApplicationsForJob(jobId);
-      if (!result.success) {
-        throw new Error(result.error || "We couldn't load candidate applications.");
-      }
-      return result.data;
-    })
-  );
-
-  const applications = applicationsByJob
-    .flat()
+  const applicationResult = await getApplicationsForEmployer();
+  if (!applicationResult.success) throw new Error(applicationResult.error || "We couldn't load candidate applications.");
+  const applications = applicationResult.data
     .sort((left, right) => new Date(right.applied_at).getTime() - new Date(left.applied_at).getTime());
 
   return (

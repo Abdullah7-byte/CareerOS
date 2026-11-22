@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EmployerCandidatesBoard } from "@/components/dashboard/employer/candidate-review";
-import { getApplicationsForJob } from "@/app/action/applications";
+import { getApplicationsForEmployer } from "@/app/action/applications";
 
 export const dynamic = "force-dynamic";
 
@@ -23,34 +23,15 @@ export default async function EmployerCandidatesPage() {
     redirect("/dashboard/candidate");
   }
 
-  const { data: jobs, error: jobsError } = await supabase
-    .from("jobs")
-    .select("id")
-    .eq("profile_id", user.id)
-    .order("created_at", { ascending: false });
-
-  if (jobsError) {
-    throw new Error("We couldn't load candidates. Please try again.");
-  }
-
-  const ownedJobIds = (jobs ?? []).map((job) => job.id);
-  const applicationResults = await Promise.all(
-    ownedJobIds.map(async (jobId) => {
-      const result = await getApplicationsForJob(jobId);
-      if (!result.success) {
-        throw new Error(result.error || "We couldn't load candidate applications.");
-      }
-      return result.data;
-    })
-  );
-
-  const applicants = applicationResults
-    .flat()
+  const applicationResult = await getApplicationsForEmployer();
+  if (!applicationResult.success) throw new Error(applicationResult.error || "We couldn't load candidate applications.");
+  const applicants = applicationResult.data
     .map((application) => ({
       id: application.id,
       profile_id: application.profile?.id ?? "",
       status: application.status,
       match_score: application.match_score,
+      score_status: application.score_status,
       applied_at: application.applied_at,
       full_name: application.profile?.full_name ?? null,
       headline: application.profile?.headline ?? null,

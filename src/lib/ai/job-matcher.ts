@@ -1,4 +1,4 @@
-import groq from "@/lib/ai/groq";
+import groq, { GROQ_MODEL } from "@/lib/ai/groq";
 import { ResumeContent, jobRelevanceEvaluationSchema } from "@/lib/validations/resume";
 
 export async function evaluateJobRelevance(resume: ResumeContent, jobDescription: string) {
@@ -48,6 +48,7 @@ Return JSON EXACTLY matching this schema:
   }
 }`;
 
+  try {
   const response = await groq.chat.completions.create({
     messages: [
       {
@@ -59,7 +60,8 @@ Return JSON EXACTLY matching this schema:
         content: prompt,
       },
     ],
-    model: "openai/gpt-oss-120b",
+    model: GROQ_MODEL,
+    temperature: 0,
     response_format: { type: "json_object" },
   });
 
@@ -83,5 +85,9 @@ Return JSON EXACTLY matching this schema:
     };
   } catch {
     return { success: false, error: "AI returned invalid JSON" };
+  }
+  } catch {
+    // Provider errors can contain prompt fragments; never surface or log them.
+    return { success: false, error: "AI scoring is temporarily unavailable" };
   }
 }

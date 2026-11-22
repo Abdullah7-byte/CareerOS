@@ -33,7 +33,7 @@ export default async function CandidateApplicationsPage({
   const { data, error } = await supabase
     .from("applications")
     .select(
-      "id, job_id, status, match_score, applied_at, created_at, job:jobs(id, title, company, location, employment_type)"
+      "id, job_id, status, match_score, score_status, applied_at, created_at, job:jobs(id, title, company, location, employment_type)"
     )
     .eq("profile_id", user.id)
     .neq("status", withdrawnApplicationStatus)
@@ -48,6 +48,7 @@ export default async function CandidateApplicationsPage({
     jobId: application.job_id,
     status: application.status,
     matchScore: application.match_score,
+    scoreStatus: application.score_status,
     appliedAt: application.applied_at,
     createdAt: application.created_at,
     job: application.job

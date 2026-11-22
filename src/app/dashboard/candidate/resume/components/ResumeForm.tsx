@@ -25,6 +25,7 @@ type ResumeFormProps = {
     resumeId?: string | null;
     resume: {
         id?: string;
+        version?: number;
         title: string;
         summary: string | null;
         resume_experiences?: {
@@ -178,6 +179,7 @@ export default function ResumeForm({ resume, resumeId, candidateName, profile }:
         type: "success" | "error";
         text: string;
     } | null>(null);
+    const [resumeVersion, setResumeVersion] = useState(resume?.version);
 
     // Live resume — passed directly to ResumePreview (pure HTML, instant, no flicker)
     const currentResume: ResumeContent = { title: resumeTitle, summary, experience, education, skills, projects };
@@ -189,6 +191,7 @@ export default function ResumeForm({ resume, resumeId, candidateName, profile }:
         startSaving(async () => {
             const resumeResult = await saveResume({
                 resumeId: resumeId ?? undefined,
+                version: resumeVersion,
                 title: resumeTitle,
                 summary,
                 experience,
@@ -216,6 +219,8 @@ export default function ResumeForm({ resume, resumeId, candidateName, profile }:
             if (!resumeId && resumeResult.data.id) {
                 router.replace(`/dashboard/candidate/resume?resume=${resumeResult.data.id}`);
             }
+
+            setResumeVersion(resumeResult.data.version);
 
             if (resumeResult.success) {
                 setTimeout(() => setSaveMessage(null), 2500);

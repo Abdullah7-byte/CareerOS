@@ -1,3 +1,13 @@
+-- Intentionally empty.
+--
+-- This migration was committed after 20260807055636_initial_schema.sql, which
+-- already creates every table below. Keeping the duplicate CREATE statements
+-- made a clean `supabase db reset` fail with "relation already exists".
+-- Environments that have recorded this migration do not replay it, so turning
+-- it into a no-op repairs fresh installs without changing an upgraded schema.
+-- The original statements are retained below as comments for migration
+-- provenance only.
+/*
 create table public.resumes (
     id uuid primary key default gen_random_uuid(),
 
@@ -148,3 +158,4 @@ create table public.applications (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+*/

@@ -50,7 +50,7 @@ export default async function CandidateJobsPage({
     jobsQuery,
     supabase
       .from("applications")
-      .select("id, job_id, status, match_score, applied_at")
+      .select("id, job_id, status, match_score, score_status, applied_at")
       .eq("profile_id", user.id)
       .neq("status", withdrawnApplicationStatus)
       .order("applied_at", { ascending: false }),
@@ -89,6 +89,7 @@ export default async function CandidateJobsPage({
             id: application.id,
             status: application.status,
             matchScore: application.match_score,
+            scoreStatus: application.score_status,
             appliedAt: application.applied_at,
           }
         : null,

@@ -31,7 +31,7 @@ export default async function EmployerCandidateDetailPage({
   const { data: application, error } = await supabase
     .from("applications")
     .select(
-      "id, profile_id, status, match_score, applied_at, resume_id, job:jobs(id, title, company, location, employment_type, profile_id)"
+      "id, profile_id, status, match_score, score_status, score_breakdown, score_rubric_version, score_model_version, applied_at, resume_id, job:jobs(id, title, company, location, employment_type, profile_id)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -81,6 +81,10 @@ export default async function EmployerCandidateDetailPage({
         id: application.id,
         status: application.status,
         match_score: application.match_score,
+        score_status: application.score_status,
+        score_breakdown: application.score_breakdown,
+        score_rubric_version: application.score_rubric_version,
+        score_model_version: application.score_model_version,
         applied_at: application.applied_at,
         resume_id: application.resume_id,
         resume: submittedResume,

@@ -16,6 +16,7 @@ export interface EmployerApplicant {
   profile_id: string;
   status: string;
   match_score: number | null;
+  score_status?: string;
   applied_at: string;
   full_name: string | null;
   headline: string | null;
@@ -144,9 +145,14 @@ export function EmployerCandidatesBoard({ applicants }: { applicants: EmployerAp
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-base font-bold tracking-tight text-foreground">{applicant.full_name ?? "Unnamed candidate"}</h2>
-                    {typeof applicant.match_score === "number" && (
+                    {typeof applicant.match_score === "number" && applicant.score_status !== "legacy" && (
                       <Badge variant="outline" className="px-2 py-0.5 text-[10px]">
                         Match {Math.round((applicant.match_score / 25) * 100)}%
+                      </Badge>
+                    )}
+                    {(applicant.match_score === null || applicant.score_status === "legacy") && applicant.score_status && applicant.score_status !== "legacy" && (
+                      <Badge variant="outline" className="px-2 py-0.5 text-[10px]">
+                        {applicant.score_status === "insufficient" ? "Insufficient job detail" : applicant.score_status === "failed" ? "Score retry pending" : "Scoring pending"}
                       </Badge>
                     )}
                   </div>
@@ -205,6 +211,10 @@ export function EmployerCandidateDetail({
     id: string;
     status: string;
     match_score: number | null;
+    score_status?: string;
+    score_breakdown?: unknown;
+    score_rubric_version?: string | null;
+    score_model_version?: string | null;
     applied_at: string;
     resume_id: string | null;
     resume: { id: string; title: string; summary: string | null } | null;
@@ -290,7 +300,7 @@ export function EmployerCandidateDetail({
             <div className="rounded-xl border border-border bg-background/45 p-3">
               <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">Match</p>
               <p className="mt-2 text-sm font-semibold text-foreground">
-                {typeof application.match_score === "number" ? `${Math.round((application.match_score / 25) * 100)}%` : "—"}
+                {typeof application.match_score === "number" && application.score_status !== "legacy" ? `${Math.round((application.match_score / 25) * 100)}%` : scoreLabel(application.score_status)}
               </p>
             </div>
             {candidate?.phone && (
@@ -300,6 +310,12 @@ export function EmployerCandidateDetail({
               </div>
             )}
           </div>
+
+          <ScoreExplanation
+            breakdown={application.score_breakdown}
+            rubricVersion={application.score_rubric_version}
+            modelVersion={application.score_model_version}
+          />
 
           <div className="mt-5 rounded-xl border border-border bg-background/45 p-3.5">
             <div className="flex items-center justify-between gap-3">
@@ -366,4 +382,28 @@ export function EmployerCandidateDetail({
       </div>
     </div>
   );
+}
+
+function scoreLabel(status?: string) {
+  if (status === "insufficient") return "Insufficient job detail";
+  if (status === "failed") return "Retry pending";
+  if (status === "pending" || status === "processing") return "Scoring pending";
+  if (status === "legacy") return "Legacy score";
+  return "—";
+}
+
+function ScoreExplanation({ breakdown, rubricVersion, modelVersion }: { breakdown?: unknown; rubricVersion?: string | null; modelVersion?: string | null }) {
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return null;
+  const entries = Object.entries(breakdown as Record<string, unknown>).filter(([, value]) => value && typeof value === "object");
+  if (!entries.length) return null;
+  return <div className="mt-5 rounded-xl border border-border bg-background/45 p-3.5">
+    <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">Score evidence</p>
+    <div className="mt-3 space-y-2 text-xs text-text-secondary">
+      {entries.map(([name, value]) => {
+        const category = value as { score?: number; maxScore?: number; details?: string[]; evidence?: { matched?: string[] } };
+        return <div key={name}><span className="font-semibold text-foreground">{name}: {category.score ?? 0}/{category.maxScore ?? 0}</span>{category.details?.[0] ? ` — ${category.details[0]}` : ""}{category.evidence?.matched?.length ? ` Evidence: ${category.evidence.matched.join(", ")}.` : ""}</div>;
+      })}
+    </div>
+    <p className="mt-3 text-[10px] text-text-muted">Rubric {rubricVersion ?? "unknown"} · Model {modelVersion ?? "unknown"}</p>
+  </div>;
 }
