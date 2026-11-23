@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "NODE_OPTIONS='--conditions=react-server' GROQ_API_KEY=synthetic-test-key tsx --test tests/**/*.test.ts",
+    "db:reset": "supabase db reset --local",
+    "demo:seed": "NODE_OPTIONS='--conditions=react-server' ALLOW_SYNTHETIC_DEMO_SEED=true tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.6.1",
@@ -16,9 +19,9 @@
     "groq-sdk": "^1.5.0",
     "lucide-react": "^1.33.0",
     "next": "16.2.12",
-    "puppeteer": "^25.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },

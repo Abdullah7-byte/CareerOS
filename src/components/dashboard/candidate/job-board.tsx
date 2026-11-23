@@ -40,6 +40,7 @@ export interface JobBoardItem {
     id: string;
     status: string;
     matchScore: number | null;
+    scoreStatus?: string;
     appliedAt: string;
   } | null;
 }
@@ -279,11 +280,14 @@ function JobCard({ job, hasResume, resumes }: { job: JobBoardItem; hasResume: bo
 
           {job.application && (
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-text-secondary">
-              {job.application.matchScore !== null && (
+              {job.application.matchScore !== null && job.application.scoreStatus !== "legacy" && (
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
                   <span className="text-[10px] uppercase tracking-wider text-text-muted">Match</span>
                   <span className="font-semibold tabular-nums text-foreground">{formatMatchScore(job.application.matchScore)}</span>
                 </span>
+              )}
+              {(job.application.matchScore === null || job.application.scoreStatus === "legacy") && job.application.scoreStatus && job.application.scoreStatus !== "legacy" && (
+                <span>{job.application.scoreStatus === "insufficient" ? "Insufficient job detail" : job.application.scoreStatus === "failed" ? "Score retry pending" : "Scoring pending"}</span>
               )}
               <span>{formatSubmissionDate(job.application.appliedAt)}</span>
             </div>

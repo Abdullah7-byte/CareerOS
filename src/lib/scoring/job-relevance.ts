@@ -2,101 +2,100 @@ import { ResumeContent } from "@/lib/validations/resume";
 import { evaluateJobRelevance } from "@/lib/ai/job-matcher";
 import { ScoreCategory } from "./parseability";
 
+export const SCORE_RUBRIC_VERSION = "grounded-v1";
+
+export interface EvidenceCategory extends ScoreCategory {
+  evidence: { requirements: string[]; matched: string[]; resumeEvidence: string[] };
+}
+
 export interface JobRelevanceResult {
   success: boolean;
+  outcome?: "scored" | "insufficient";
   totalScore?: number;
   maxScore: number;
   categories?: {
-    requiredSkills: ScoreCategory;
-    preferredSkills: ScoreCategory;
-    responsibilities: ScoreCategory;
-    qualifications: ScoreCategory;
-    overallRelevance: ScoreCategory;
+    requiredSkills: EvidenceCategory;
+    preferredSkills: EvidenceCategory;
+    responsibilities: EvidenceCategory;
+    qualifications: EvidenceCategory;
+    overallRelevance: EvidenceCategory;
   };
   error?: string;
 }
 
-function sanitizeMatches(identified: string[], matched: string[]): string[] {
-  const uniqueIdentified = new Set(identified.map(s => s.toLowerCase().trim()));
-  const uniqueMatched = new Set(matched.map(s => s.trim()));
-  
-  // Only keep matched items that are actually in the identified array (case insensitive check, but return original case if possible or just normalized)
-  const sanitized: string[] = [];
-  for (const m of uniqueMatched) {
-    if (uniqueIdentified.has(m.toLowerCase())) {
-      sanitized.push(m);
-    }
-  }
-  return sanitized;
+const aliases: Record<string, string> = {
+  reactjs: "react", "react js": "react", nodejs: "node", "node js": "node",
+  js: "javascript", ts: "typescript",
+};
+
+function canonical(value: string) {
+  const normalized = value.toLowerCase().replace(/[^a-z0-9+# ]/g, " ").replace(/\s+/g, " ").trim();
+  return normalized.split(" ").map((token) => aliases[token] ?? token).join(" ");
 }
 
-export async function scoreJobRelevance(resume: ResumeContent, jobDescription: string): Promise<JobRelevanceResult> {
-  const result = await evaluateJobRelevance(resume, jobDescription);
+function unique(values: string[]) { return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))); }
 
-  if (!result.success || !result.data) {
-    return {
-      success: false,
-      maxScore: 25,
-      error: result.error || "AI evaluation failed",
-    };
-  }
+function containsTerm(haystack: string, term: string) {
+  const text = canonical(haystack);
+  const target = canonical(term);
+  return target.length > 1 && (` ${text} `).includes(` ${target} `);
+}
 
-  const { requiredSkills, preferredSkills, responsibilities, qualifications, overallRelevance } = result.data;
+function isNegated(haystack: string, term: string) {
+  const target = canonical(term).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b(?:no|not|without|lack(?:ing)?)\\s+(?:[a-z0-9+#.]+\\s+){0,2}${target}\\b`, "i").test(canonical(haystack));
+}
 
-  // Sanitize
-  const reqIdentified = Array.from(new Set(requiredSkills.identified.map(s => s.trim())));
-  const reqMatched = sanitizeMatches(reqIdentified, requiredSkills.matched);
+function resumeEvidence(resume: ResumeContent) {
+  return [
+    ...resume.skills.map((skill) => `skill: ${skill.skill}`),
+    resume.summary ? `summary: ${resume.summary}` : "",
+    ...resume.experience.flatMap((item) => [`experience: ${item.position} ${item.company}`, item.description ? `experience detail: ${item.description}` : ""]),
+    ...resume.education.map((item) => `education: ${item.degree} ${item.fieldOfStudy ?? ""} ${item.institution}`),
+    ...resume.projects.flatMap((item) => [`project: ${item.title} ${item.technologies ?? ""}`, item.description ? `project detail: ${item.description}` : ""]),
+  ].filter(Boolean);
+}
 
-  const prefIdentified = Array.from(new Set(preferredSkills.identified.map(s => s.trim())));
-  const prefMatched = sanitizeMatches(prefIdentified, preferredSkills.matched);
+function groundedMatches(requirements: string[], modelMatches: string[], jobDescription: string, evidence: string[]) {
+  const acceptedRequirements = unique(requirements).filter((requirement) => containsTerm(jobDescription, requirement));
+  const matches = unique(modelMatches).filter((match) => {
+    const requirement = acceptedRequirements.find((item) => canonical(item) === canonical(match));
+    return Boolean(requirement) && evidence.some((line) => containsTerm(line, match) && !isNegated(line, match));
+  });
+  return { requirements: acceptedRequirements, matches, resumeEvidence: matches.flatMap((match) => evidence.filter((line) => containsTerm(line, match) && !isNegated(line, match))) };
+}
 
-  const qualIdentified = Array.from(new Set(qualifications.identified.map(s => s.trim())));
-  const qualMatched = sanitizeMatches(qualIdentified, qualifications.matched);
-
-  // Deterministic scoring
-  // Note: We deliberately use "neutral scoring" (awarding full points) when the JD lacks 
-  // explicit requirements in a category. This prevents unfairly penalizing a resume for missing 
-  // qualifications if the JD never asked for them, though it can inflate scores for sparse JDs.
-  let requiredScore = 8;
-  let requiredDetails = "No specific required skills identified in JD (+8)";
-  if (reqIdentified.length > 0) {
-    requiredScore = (reqMatched.length / reqIdentified.length) * 8;
-    requiredDetails = `Matched ${reqMatched.length} of ${reqIdentified.length} required skills (+${requiredScore.toFixed(1)})`;
-  }
-
-  let preferredScore = 4;
-  let preferredDetails = "No specific preferred skills identified in JD (+4)";
-  if (prefIdentified.length > 0) {
-    preferredScore = (prefMatched.length / prefIdentified.length) * 4;
-    preferredDetails = `Matched ${prefMatched.length} of ${prefIdentified.length} preferred skills (+${preferredScore.toFixed(1)})`;
-  }
-
-  let qualScore = 4;
-  let qualDetails = "No explicit qualifications required in JD (+4)";
-  if (qualIdentified.length > 0) {
-    qualScore = (qualMatched.length / qualIdentified.length) * 4;
-    qualDetails = `Matched ${qualMatched.length} of ${qualIdentified.length} qualifications (+${qualScore.toFixed(1)})`;
-  }
-
-  // LLM evaluated Semantic alignments
-  // Responsibilities out of 5
-  const respScore = responsibilities.score; 
-
-  // Overall Relevance out of 4 (LLM gives 0-5, we map to /4)
-  const relScore = (overallRelevance.score / 5) * 4;
-
-  const totalScore = requiredScore + preferredScore + qualScore + respScore + relScore;
-
+function category(maxScore: number, requirements: string[], matches: string[], evidence: string[], label: string): EvidenceCategory {
+  const score = requirements.length ? (matches.length / requirements.length) * maxScore : 0;
   return {
-    success: true,
-    totalScore: Math.round(totalScore * 10) / 10, // Round to 1 decimal place for neatness
-    maxScore: 25,
-    categories: {
-      requiredSkills: { score: requiredScore, maxScore: 8, details: [requiredDetails] },
-      preferredSkills: { score: preferredScore, maxScore: 4, details: [preferredDetails] },
-      responsibilities: { score: respScore, maxScore: 5, details: [responsibilities.details] },
-      qualifications: { score: qualScore, maxScore: 4, details: [qualDetails] },
-      overallRelevance: { score: relScore, maxScore: 4, details: [overallRelevance.details] },
-    },
+    score,
+    maxScore,
+    details: requirements.length ? [`Grounded ${matches.length} of ${requirements.length} ${label} (+${score.toFixed(1)})`] : [`No grounded ${label} in this job description`],
+    evidence: { requirements, matched: matches, resumeEvidence: evidence },
   };
+}
+
+export async function scoreJobRelevance(
+  resume: ResumeContent,
+  jobDescription: string,
+  evaluate: typeof evaluateJobRelevance = evaluateJobRelevance,
+): Promise<JobRelevanceResult> {
+  const result = await evaluate(resume, jobDescription);
+  if (!result.success || !result.data) return { success: false, maxScore: 25, error: result.error || "AI evaluation failed" };
+
+  const sourceEvidence = resumeEvidence(resume);
+  const required = groundedMatches(result.data.requiredSkills.identified, result.data.requiredSkills.matched, jobDescription, sourceEvidence);
+  const preferred = groundedMatches(result.data.preferredSkills.identified, result.data.preferredSkills.matched, jobDescription, sourceEvidence);
+  const qualifications = groundedMatches(result.data.qualifications.identified, result.data.qualifications.matched, jobDescription, sourceEvidence);
+  if (required.requirements.length + preferred.requirements.length + qualifications.requirements.length === 0) {
+    return { success: true, outcome: "insufficient", maxScore: 25 };
+  }
+
+  const requiredSkills = category(8, required.requirements, required.matches, required.resumeEvidence, "required skills");
+  const preferredSkills = category(4, preferred.requirements, preferred.matches, preferred.resumeEvidence, "preferred skills");
+  const qualificationCategory = category(4, qualifications.requirements, qualifications.matches, qualifications.resumeEvidence, "qualifications");
+  const responsibilities: EvidenceCategory = { score: result.data.responsibilities.score, maxScore: 5, details: [result.data.responsibilities.details], evidence: { requirements: [], matched: [], resumeEvidence: [] } };
+  const overallRelevance: EvidenceCategory = { score: (result.data.overallRelevance.score / 5) * 4, maxScore: 4, details: [result.data.overallRelevance.details], evidence: { requirements: [], matched: [], resumeEvidence: [] } };
+  const totalScore = Math.round((requiredSkills.score + preferredSkills.score + qualificationCategory.score + responsibilities.score + overallRelevance.score) * 10) / 10;
+  return { success: true, outcome: "scored", totalScore, maxScore: 25, categories: { requiredSkills, preferredSkills, responsibilities, qualifications: qualificationCategory, overallRelevance } };
 }

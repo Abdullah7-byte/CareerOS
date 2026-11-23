@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import "server-only";
 import type { Database } from "@/lib/database.types";
 
 /** Server-only client for writes that must not be available to a user JWT. */

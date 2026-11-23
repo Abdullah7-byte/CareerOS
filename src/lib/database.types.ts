@@ -39,6 +39,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_scoring_events: {
+        Row: { application_id: string; attempt: number; created_at: string; error_code: string | null; event_type: string; id: string; profile_id: string }
+        Insert: { application_id: string; attempt: number; created_at?: string; error_code?: string | null; event_type: string; id?: string; profile_id: string }
+        Update: { application_id?: string; attempt?: number; created_at?: string; error_code?: string | null; event_type?: string; id?: string; profile_id?: string }
+        Relationships: []
+      }
       applications: {
         Row: {
           applied_at: string
@@ -46,8 +52,19 @@ export type Database = {
           id: string
           job_id: string
           match_score: number | null
+          job_snapshot: Json | null
           profile_id: string
           resume_id: string | null
+          resume_snapshot: Json | null
+          score_attempts: number
+          score_breakdown: Json | null
+          score_completed_at: string | null
+          score_last_error_code: string | null
+          score_model_version: string | null
+          score_next_retry_at: string | null
+          score_rubric_version: string | null
+          score_started_at: string | null
+          score_status: string
           status: string
           updated_at: string
         }
@@ -57,8 +74,19 @@ export type Database = {
           id?: string
           job_id: string
           match_score?: number | null
+          job_snapshot?: Json | null
           profile_id: string
           resume_id?: string | null
+          resume_snapshot?: Json | null
+          score_attempts?: number
+          score_breakdown?: Json | null
+          score_completed_at?: string | null
+          score_last_error_code?: string | null
+          score_model_version?: string | null
+          score_next_retry_at?: string | null
+          score_rubric_version?: string | null
+          score_started_at?: string | null
+          score_status?: string
           status?: string
           updated_at?: string
         }
@@ -68,8 +96,19 @@ export type Database = {
           id?: string
           job_id?: string
           match_score?: number | null
+          job_snapshot?: Json | null
           profile_id?: string
           resume_id?: string | null
+          resume_snapshot?: Json | null
+          score_attempts?: number
+          score_breakdown?: Json | null
+          score_completed_at?: string | null
+          score_last_error_code?: string | null
+          score_model_version?: string | null
+          score_next_retry_at?: string | null
+          score_rubric_version?: string | null
+          score_started_at?: string | null
+          score_status?: string
           status?: string
           updated_at?: string
         }
@@ -368,6 +407,7 @@ export type Database = {
           summary: string | null
           title: string
           updated_at: string
+          version: number
         }
         Insert: {
           created_at?: string
@@ -377,6 +417,7 @@ export type Database = {
           summary?: string | null
           title: string
           updated_at?: string
+          version?: number
         }
         Update: {
           created_at?: string
@@ -386,6 +427,7 @@ export type Database = {
           summary?: string | null
           title?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -402,12 +444,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_application_scoring: {
+        Args: { p_application_id?: string | null }
+        Returns: { application_id: string; profile_id: string; resume_snapshot: Json | null; job_snapshot: Json | null; attempt: number }[]
+      }
+      create_candidate_resume: {
+        Args: { p_resume: Json }
+        Returns: { id: string; version: number }[]
+      }
       save_candidate_resume: {
         Args: {
           p_resume_id: string
           p_resume: Json
+          p_expected_version?: number | null
         }
-        Returns: undefined
+        Returns: number
       }
       set_candidate_default_resume: {
         Args: {

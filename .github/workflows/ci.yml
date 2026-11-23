@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
   pull_request:
   workflow_dispatch:
 
@@ -18,10 +16,34 @@ jobs:
         with:
           node-version: 22
 
-      - run: npm install
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      - run: npm ci
+
+      # Database verification does not require UI, image, vector, analytics, or
+      # edge containers; excluding them keeps this disposable CI stack small.
+      - run: supabase start --debug -x studio,vector,imgproxy,edge-runtime,logflare
+
+      - name: Export disposable Supabase build variables
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "SCORING_WORKER_SECRET=ci-synthetic-worker-secret"
+          } >> "$GITHUB_ENV"
+
+      - run: bash scripts/verify-db.sh
 
       - run: npm run lint
 
       - run: npx next typegen
 
       - run: npx tsc --noEmit
+
+      - run: npm test
+
+      - run: npm run build

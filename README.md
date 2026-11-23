@@ -122,16 +122,58 @@ Create a `.env.local` file with the required environment variables:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 GROQ_API_KEY=
+SCORING_WORKER_SECRET=
 ```
 
-Apply the Supabase migrations to the target project, then start the development server:
+For a disposable local environment, install Docker Desktop and the Supabase CLI,
+then replay the complete migration history before adding any synthetic data:
+
+```bash
+supabase start
+npm run db:reset
+```
+
+The local SMTP inbox is available through Supabase Studio; no real email is sent.
+Never use `demo:seed` against a remote project: it refuses URLs other than
+`localhost`/`127.0.0.1` and creates only `@careeros.test` accounts.
+
+```bash
+npm run demo:seed
+```
+
+Apply migrations to a target project only through the normal reviewed deployment
+workflow, then start the development server:
 
 ```bash
 npm run dev
 ```
 
-Run the available quality checks with `npm run lint` and `npx tsc --noEmit`.
+Run the verified local checks with:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm test
+npm run build
+```
+
+### Application scoring lifecycle
+
+Submission creates one application ID and immutable job/resumé snapshots before
+any AI call. Its score is `pending`/`failed`/`scored`/`insufficient`; retries
+claim that same ID, have an 8-second provider timeout, bounded backoff, five
+attempts per application, and a 20-attempt-per-candidate daily cap. A scheduler
+may POST to `/api/internal/scoring/retry` with
+`Authorization: Bearer $SCORING_WORKER_SECRET`. Diagnostics store only an error
+code, never résumé text.
+
+For a demo, submit once while Groq is unavailable and note the application ID:
+it exists immediately with `failed` or `pending`; after provider recovery, run
+the scheduler and the same ID becomes `scored` (or `insufficient` for a sparse
+job). Historical applications are marked `legacy` because their original
+snapshots cannot be recreated faithfully.
 
 ## Project Status
 

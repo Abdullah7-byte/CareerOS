@@ -103,6 +103,8 @@ export default function LoginPage() {
         </form>
       </div>
       <div className="mt-6 text-center text-sm text-text-secondary">
+        <Link href="/reset-password" className="font-medium text-foreground hover:text-accent transition-colors">Forgot password?</Link>
+        <span className="mx-2">·</span>
         Don&apos;t have an account?{" "}
         <Link href="/register" className="font-medium text-foreground hover:text-accent transition-colors">
           Create account

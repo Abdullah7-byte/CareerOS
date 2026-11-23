@@ -1,6 +1,7 @@
 "use server";
 
 import groq from "@/lib/ai/groq";
+import { GROQ_MODEL } from "@/lib/ai/groq";
 import { createClient } from "@/lib/supabase/server";
 import { summaryEnhancementInputSchema, summaryEnhancementSchema } from "@/lib/validations/resume";
 
@@ -51,7 +52,8 @@ Return JSON in exactly this format:
 {"summary":"improved summary"}`,
             },
         ],
-        model: "openai/gpt-oss-120b",
+        model: GROQ_MODEL,
+        temperature: 0,
         response_format: { type: "json_object" },
         });
 
@@ -76,6 +78,14 @@ Return JSON in exactly this format:
             };
         }
 
+        // An editor may improve wording, but it must not introduce new
+        // substantive terms (technologies, roles, achievements, employers).
+        // The candidate's original draft remains untouched until they choose
+        // to apply a suggestion in the UI.
+        if (hasUnsupportedClaimTerms(summary, result.data.summary)) {
+            return { success: false, error: "AI introduced a claim not supported by your original summary. Please try again." };
+        }
+
         return {
             success: true,
             data: result.data,
@@ -83,4 +93,17 @@ Return JSON in exactly this format:
     } catch {
         return { success: false, error: "AI assistance is temporarily unavailable. Please try again." };
     }
+}
+
+const editorialWords = new Set([
+    "a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with",
+    "professional", "candidate", "focused", "skills", "skill", "work", "working", "background", "experience",
+    "experienced", "career", "seeking", "seeks", "who", "that", "this", "through", "across", "while", "using",
+    "building", "developing", "delivering", "supporting", "collaborative", "detail", "oriented", "results",
+]);
+
+function hasUnsupportedClaimTerms(source: string, suggestion: string) {
+    const words = (value: string) => new Set((value.toLowerCase().match(/[a-z][a-z0-9+#.-]*/g) ?? []).map((word) => word.replace(/[.-]+$/, "")));
+    const supported = words(source);
+    return [...words(suggestion)].some((word) => word.length > 2 && !supported.has(word) && !editorialWords.has(word));
 }

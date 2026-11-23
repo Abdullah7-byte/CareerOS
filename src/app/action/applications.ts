@@ -5,15 +5,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { jobIdSchema } from "@/lib/validations/job";
 import type { Tables } from "@/lib/database.types";
 import type { ResumeContent } from "@/lib/validations/resume";
-import { scoreJobRelevance } from "@/lib/scoring/job-relevance";
+import { processApplicationScoring } from "@/lib/scoring/application-scoring";
 
 type Application = Tables<"applications">;
 type Job = Tables<"jobs">;
 type Profile = Tables<"profiles">;
 
 export type ApplicationWithRelations = Application & {
-    job: Job | null;
-    profile: Profile | null;
+    job: Pick<Job, "id" | "title" | "company" | "location" | "employment_type"> | null;
+    profile: Pick<Profile, "id" | "full_name" | "headline" | "location"> | null;
     resume: Pick<Tables<"resumes">, "id" | "title"> | null;
 };
 
@@ -88,6 +88,17 @@ export async function createApplication(
     }
 
     if (existingApplication) {
+        // Repeated submission is an idempotent recovery trigger, never a new
+        // application. A concurrent worker can claim it at most once.
+        await processApplicationScoring(existingApplication.id);
+        let admin;
+        try {
+            admin = createAdminClient();
+            const { data } = await admin.from("applications").select("*").eq("id", existingApplication.id).maybeSingle();
+            if (data) return { success: true, data };
+        } catch {
+            // Preserve the normal duplicate response if the privileged retry is unavailable.
+        }
         return { success: false, error: "You already have an active application for this job." };
     }
 
@@ -147,26 +158,22 @@ export async function createApplication(
         })),
     };
 
-    const scoringResult = await scoreJobRelevance(
-        resumeContent,
-        job.description ?? ""
-    );
-
-    if (!scoringResult.success) {
-        return {
-            success: false,
-            error: scoringResult.error ?? "Failed to score job relevance.",
-        };
-    }
-
-    const matchScore = scoringResult.totalScore;
-
     let admin;
     try {
         admin = createAdminClient();
     } catch {
         return { success: false, error: "Application submission is temporarily unavailable." };
     }
+
+    const jobSnapshot = {
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        employment_type: job.employment_type,
+        description: job.description ?? "",
+        captured_at: new Date().toISOString(),
+    };
 
     const { data, error: insertError } = await admin
         .from("applications")
@@ -175,13 +182,22 @@ export async function createApplication(
             job_id: id,
             resume_id: selectedResume.id,
             status: "applied",
-            match_score: matchScore,
+            match_score: null,
+            resume_snapshot: resumeContent,
+            job_snapshot: jobSnapshot,
+            score_status: "pending",
         })
         .select("*")
         .single();
 
     if (insertError) {
         if (insertError.code === "23505") {
+            const { data: duplicate } = await admin.from("applications")
+                .select("*").eq("profile_id", user.id).eq("job_id", id).neq("status", withdrawnApplicationStatus).maybeSingle();
+            if (duplicate) {
+                await processApplicationScoring(duplicate.id);
+                return { success: true, data: duplicate };
+            }
             return { success: false, error: "You already have an active application for this job." };
         }
 
@@ -189,7 +205,11 @@ export async function createApplication(
         return { success: false, error: "Unable to submit your application. Please try again." };
     }
 
-    return { success: true, data };
+    // The submission already exists and is visible before this call. A failure
+    // moves it to durable retry state rather than undoing the application.
+    await processApplicationScoring(data.id);
+    const { data: refreshed } = await admin.from("applications").select("*").eq("id", data.id).single();
+    return { success: true, data: refreshed ?? data };
 }
 
 export async function getApplicationsForJob(
@@ -256,8 +276,8 @@ export async function getApplicationsForJob(
         .from("applications")
         .select(`
             *,
-            job:jobs(*),
-            profile:profiles(*),
+            job:jobs(id, title, company, location, employment_type),
+            profile:profiles(id, full_name, headline, location),
             resume:resumes(id, title)
         `)
         .eq("job_id", idValidation.data)
@@ -269,6 +289,32 @@ export async function getApplicationsForJob(
     }
 
     return { success: true, data };
+}
+
+/** One ownership-scoped, paginated employer query replaces per-job fan-out. */
+export async function getApplicationsForEmployer(page = 0, pageSize = 50): Promise<ApplicationActionResult<ApplicationWithRelations[]>> {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (profile?.role !== "employer") return { success: false, error: "Not authorized to view applications." };
+    try {
+        const admin = createAdminClient();
+        const { data: jobs, error: jobsError } = await admin.from("jobs").select("id").eq("profile_id", user.id);
+        if (jobsError) return { success: false, error: "Unable to load candidate applications." };
+        const ids = (jobs ?? []).map((job) => job.id);
+        if (!ids.length) return { success: true, data: [] };
+        const start = Math.max(0, page) * Math.min(Math.max(1, pageSize), 100);
+        const end = start + Math.min(Math.max(1, pageSize), 100) - 1;
+        const { data, error } = await admin.from("applications").select(`
+            *, job:jobs(id, title, company, location, employment_type),
+            profile:profiles(id, full_name, headline, location), resume:resumes(id, title)
+        `).in("job_id", ids).order("applied_at", { ascending: false }).range(start, end);
+        if (error) return { success: false, error: "Unable to load candidate applications." };
+        return { success: true, data: data ?? [] };
+    } catch {
+        return { success: false, error: "Unable to load candidate applications." };
+    }
 }
 
 export async function getUserApplications(): Promise<ApplicationActionResult<ApplicationWithJobDetails[]>> {

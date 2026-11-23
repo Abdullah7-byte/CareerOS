@@ -8,6 +8,7 @@ export type MatchAnalysisState =
   | { status: "idle" }
   | { status: "activating" | "locking" | "scanning" | "verifying"; step: number }
   | { status: "resolved"; score: number }
+  | { status: "pending" }
   | { status: "error"; message: string };
 
 const ANALYSIS_DURATION = 5200;
@@ -35,7 +36,7 @@ export function useMatchAnalysis() {
     interval.current = null;
   }
 
-  async function run<T extends { success: boolean; data?: { match_score?: number | null }; error?: string }>(task: () => Promise<T>) {
+  async function run<T extends { success: boolean; data?: { match_score?: number | null; score_status?: string }; error?: string }>(task: () => Promise<T>) {
     clearAnimation();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setAnalysis({ status: "activating", step: 0 });
@@ -68,6 +69,10 @@ export function useMatchAnalysis() {
 
     const score = result.data?.match_score;
     if (typeof score !== "number") {
+      if (result.data?.score_status === "pending" || result.data?.score_status === "processing" || result.data?.score_status === "failed") {
+        setAnalysis({ status: "pending" });
+        return result;
+      }
       setAnalysis({ status: "error", message: "Match analysis did not return a score. Please try again." });
       return result;
     }
@@ -91,6 +96,10 @@ export function MatchAnalysisPanel({ analysis, jobTitle, resumeTitle }: { analys
   const step = "step" in analysis ? analysis.step : SCAN_STEPS.length;
   const isResolved = analysis.status === "resolved";
   const isError = analysis.status === "error";
+
+  if (analysis.status === "pending") {
+    return <div className="match-analysis-panel mx-auto w-full max-w-[17rem]"><p className="text-center text-xs text-text-secondary">Application submitted. Scoring is pending and will retry automatically.</p></div>;
+  }
 
   if (analysis.status === "resolved") {
     return (
